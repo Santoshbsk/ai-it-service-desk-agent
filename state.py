@@ -7,3 +7,4 @@ class ServiceDeskState(TypedDict):
     priority: str
     response: str
     next_action: str
+    retrieved_context: list

@@ -13,6 +13,9 @@ env/
 .env.*
 !.env.example
 
+.rag-env/
+rag-env/
+
 # Local vector database
 chroma_db/
 

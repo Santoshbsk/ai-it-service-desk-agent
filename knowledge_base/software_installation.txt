@@ -1,0 +1,20 @@
+IT SUPPORT RUNBOOK
+
+Title: Approved Software Installation
+Document ID: IT-SW-001
+
+Employees should install corporate software only through the approved Software Center.
+
+Steps:
+
+1. Open the corporate Software Center.
+2. Search for the required application.
+3. Select the application.
+4. Click Install.
+5. Wait for the installation to complete.
+6. Restart the application if required.
+
+Security:
+Employees must not download unauthorized software from the internet.
+
+If the required software is not available in Software Center, create a software request for the IT Service Desk.

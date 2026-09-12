@@ -3,3 +3,7 @@ langchain
 langchain-google-genai
 python-dotenv
 streamlit
+ragas==0.3.9
+datasets
+sentence-transformers
+shuttle

@@ -1,0 +1,26 @@
+IT SUPPORT RUNBOOK
+
+Title: Laptop Performance Troubleshooting
+Document ID: IT-LAPTOP-001
+
+Symptoms:
+- Laptop is slow
+- Applications take a long time to open
+- System becomes unresponsive
+
+Troubleshooting Steps:
+
+1. Check available disk space.
+2. Close unnecessary applications.
+3. Restart the laptop.
+4. Check whether CPU or memory utilization is unusually high.
+5. Remove unnecessary temporary files using the approved cleanup procedure.
+6. Install pending operating system updates.
+7. Restart the laptop after updates are installed.
+
+Escalation:
+If the laptop remains slow after completing the troubleshooting steps, escalate the issue to Desktop Support.
+
+Security:
+Do not delete system files manually.
+Use only approved IT cleanup procedures.

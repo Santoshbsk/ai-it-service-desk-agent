@@ -1,11 +1,13 @@
 from langgraph.graph import StateGraph, START, END
+from rag import retrieve_context
 
 from state import ServiceDeskState
 from agent import (
     classify_issue,
     route_issue,
     escalation_response,
-    self_service_response
+    self_service_response,
+    retrieve_knowledge
 )
 
 
@@ -24,10 +26,12 @@ graph.add_node("classify_issue", classify_issue)
 graph.add_node("route_issue", route_issue)
 graph.add_node("escalate", escalation_response)
 graph.add_node("self_service", self_service_response)
+graph.add_node("retrieve_knowledge", retrieve_knowledge)
 
 # Flow
 graph.add_edge(START, "classify_issue")
-graph.add_edge("classify_issue", "route_issue")
+graph.add_edge("classify_issue", "retrieve_knowledge")
+graph.add_edge("retrieve_knowledge", "route_issue")
 
 # Conditional routing
 graph.add_conditional_edges(

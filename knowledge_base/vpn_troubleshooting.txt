@@ -1,0 +1,22 @@
+IT SUPPORT RUNBOOK
+
+Title: VPN Connection Troubleshooting
+Document ID: IT-VPN-001
+
+Symptoms:
+- Unable to connect to corporate VPN
+- VPN connection repeatedly disconnects
+- VPN authentication fails
+
+Troubleshooting Steps:
+
+1. Verify that the employee has an active internet connection.
+2. Confirm that the corporate VPN client is running.
+3. Restart the VPN client.
+4. Verify that the employee is using the correct corporate credentials.
+5. If multi-factor authentication fails, verify that the employee's MFA method is working.
+6. If the VPN still cannot connect, restart the laptop and try again.
+7. If the issue persists after these steps, escalate the incident to the Network Support team.
+
+Priority:
+VPN issues preventing an employee from accessing critical business applications should be treated as High priority.
