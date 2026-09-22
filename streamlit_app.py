@@ -1,4 +1,5 @@
 import streamlit as st
+import uuid
 
 from agent import app
 from langgraph.types import Command
@@ -36,13 +37,41 @@ if "messages" not in st.session_state:
     ]
 
 if "thread_id" not in st.session_state:
-    st.session_state.thread_id = "streamlit-service-desk-001"
+    st.session_state.thread_id = (
+        f"streamlit-service-desk-{uuid.uuid4()}"
+    )
 
 if "first_request" not in st.session_state:
     st.session_state.first_request = True
 
 if "pending_interrupt" not in st.session_state:
     st.session_state.pending_interrupt = False
+
+
+def reset_conversation():
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": (
+                "Welcome to the AI IT Service Desk.\n\n"
+                "I can help troubleshoot IT issues, check your device or "
+                "network, and create or manage ServiceNow tickets.\n\n"
+                "How can I help you today?"
+            )
+        }
+    ]
+    st.session_state.thread_id = (
+        f"streamlit-service-desk-{uuid.uuid4()}"
+    )
+    st.session_state.first_request = True
+    st.session_state.pending_interrupt = False
+
+
+with st.sidebar:
+    st.subheader("Conversation")
+    if st.button("Reset conversation", use_container_width=True):
+        reset_conversation()
+        st.rerun()
 
 
 # ---------------------------------------------------------
@@ -163,12 +192,20 @@ if user_input:
 
             interrupt_data = result["__interrupt__"][0]
 
-            st.warning(interrupt_data.value)
+            interrupt_message = str(interrupt_data.value)
+
+            st.warning(interrupt_message)
+
+            st.session_state.messages.append(
+                {
+                    "role": "assistant",
+                    "content": f"⚠️ {interrupt_message}"
+                }
+            )
 
             st.session_state.pending_interrupt = True
 
             st.stop()
-
         st.session_state.pending_interrupt = False
 
 
