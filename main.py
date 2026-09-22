@@ -1,71 +1,104 @@
-from langgraph.graph import StateGraph, START, END
-from rag import retrieve_context
+from langgraph.types import Command
+from config import validate_config
+from agent import app
 
-from state import ServiceDeskState
-from agent import (
-    classify_issue,
-    route_issue,
-    escalation_response,
-    self_service_response,
-    retrieve_knowledge
-)
-
-
-def route_after_classification(state: ServiceDeskState):
-
-    if state["next_action"] == "escalate":
-        return "escalate"
-
-    return "self_service"
-
-
-graph = StateGraph(ServiceDeskState)
-
-# Nodes
-graph.add_node("classify_issue", classify_issue)
-graph.add_node("route_issue", route_issue)
-graph.add_node("escalate", escalation_response)
-graph.add_node("self_service", self_service_response)
-graph.add_node("retrieve_knowledge", retrieve_knowledge)
-
-# Flow
-graph.add_edge(START, "classify_issue")
-graph.add_edge("classify_issue", "retrieve_knowledge")
-graph.add_edge("retrieve_knowledge", "route_issue")
-
-# Conditional routing
-graph.add_conditional_edges(
-    "route_issue",
-    route_after_classification,
-    {
-        "escalate": "escalate",
-        "self_service": "self_service"
-    }
-)
-
-graph.add_edge("escalate", END)
-graph.add_edge("self_service", END)
-
-app = graph.compile()
 
 
 if __name__ == "__main__":
+    validate_config()
+    #Configure the graph with a unique thread ID for this session
+    config = {
+        "configurable": {
+            "thread_id": "service-desk-001"
+        }
+        }
 
-    user_input = input("\nDescribe your IT issue: ")
+    first_request = True
 
-    result = app.invoke({
-        "user_input": user_input
-    })
+    while True:
+        user_input = input("\nDescribe your Query (exit/quit to stop): ")
 
-    print("\n" + "=" * 50)
-    print("AI IT SERVICE DESK")
-    print("=" * 50)
+        if user_input.lower() in ["exit", "quit"]:
+            break
+        
+        #Apply the configuration and invoke the graph with the user input
+        initialstate = { #Configure the initial state with the user input
+            "user_input": user_input,
+            "category": "",
+            "priority": "",
+            "response": "",
+            "next_action": "",
+            "retrieved_context": [],
+            "tool_required": False,
+            "tool_name": "none",
+            "tool_result": {},
+            "approval_required": False,
+            "ticket_id": "",
+            "ticket_status": "",
+            "ticket_history": [],
+            "ticket_reference": "",
+            "clarification_required": False,
+            "duplicate_ticket": False,
+            "duplicate_ticket_id": "",  
+            "issue_type": "",
+            "requested_status": "",
+            "status_transition_valid": False,
+            "tool_success": True,
+            "tool_error": "",
+            "retry_count": 0,
+            "audit_log": [],
+            "decision_trace": [],
+            "tool_error_type":""
+        }
+        if first_request:
+            print("\n" + "=" * 50)
+            print("AI IT SERVICE DESK")
+            print("=" * 50)
+            first_request = False
+            result = app.invoke(initialstate,config=config)
 
-    print(f"\nCategory    : {result['category']}")
-    print(f"Priority    : {result['priority']}")
-    print(f"Next Action : {result['next_action']}")
+        else:
+            result = app.invoke({"user_input": user_input},config=config)
 
-    print("\nAgent:")
-    print(result["response"])
+        if result.get("__interrupt__"):
 
-    print("\n" + "=" * 50)
+            interrupt_data = result["__interrupt__"][0]
+
+            print("\n" + "=" * 60)
+            print("HUMAN APPROVAL REQUIRED")
+            print("=" * 60)
+
+            print(interrupt_data.value)
+
+            user_res = input("\nYour response: ")
+            print("\n" + "=" * 60)
+            print("User Respone Received:  " + user_res)
+            result = app.invoke(
+                Command(resume=user_res),
+                config=config
+            )
+
+        print("\n" + "=" * 50)
+        print("AI IT SERVICE DESK")
+        print("=" * 50)
+
+        print(f"\nCategory    : {result['category']}")
+        print(f"Priority    : {result['priority']}")
+
+        if result.get("tool_required"):
+            print("Action      : Tool execution")
+            print(f"Tool        : {result['tool_name']}")
+        else:
+            print(f"Next Action : {result['next_action']}")
+
+        print("\nAgent:")
+        print(result["response"])
+        print("\n" + "=" * 50)
+        print("\nDecision Trace:")
+
+        for i, trace in enumerate(result.get("decision_trace", []), start=1):
+
+            print(
+                f"{i}. {trace['step']}: "
+                f"{trace['decision']}"
+            )
