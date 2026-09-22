@@ -1,0 +1,21 @@
+IT SUPPORT RUNBOOK
+
+Title: Corporate Email Troubleshooting
+Document ID: IT-EMAIL-001
+
+Symptoms:
+- Email is not synchronizing
+- Outlook is not opening
+- New emails are not appearing
+
+Troubleshooting Steps:
+
+1. Verify internet connectivity.
+2. Restart Outlook.
+3. Confirm that Outlook is not in Offline mode.
+4. Restart the laptop.
+5. Check whether the issue occurs in webmail.
+6. If webmail works but Outlook does not, escalate to Desktop Support.
+
+Priority:
+Email issues that prevent critical business communication may require High priority handling.

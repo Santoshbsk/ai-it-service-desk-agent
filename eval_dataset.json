@@ -1,0 +1,82 @@
+[
+  {
+    "question": "My VPN is not connecting. What should I do?",
+    "ground_truth": "Follow the approved VPN troubleshooting steps, including checking the internet connection, restarting the VPN client, verifying credentials and MFA, and escalating to Network Support if the issue continues."
+  },
+  {
+    "question": "My VPN keeps disconnecting even though my internet connection is working.",
+    "ground_truth": "Check the VPN client and credentials, restart the VPN client, and verify MFA. If the VPN continues to disconnect, contact Network Support."
+  },
+  {
+    "question": "I cannot access company resources because the VPN won't connect.",
+    "ground_truth": "Check the internet connection, restart the VPN client, verify credentials and MFA, and contact Network Support if the VPN still does not connect."
+  },
+  {
+    "question": "What should I do if VPN authentication or MFA is failing?",
+    "ground_truth": "Verify your VPN credentials and MFA. If authentication or MFA continues to fail, contact Network Support."
+  },
+  {
+    "question": "My laptop has become extremely slow. How can I improve its performance?",
+    "ground_truth": "Close unnecessary applications, restart the laptop, check CPU and memory usage, free disk space using approved cleanup methods, and install required updates. Contact Desktop Support if the issue continues."
+  },
+  {
+    "question": "My computer is running slowly even though I have enough disk space.",
+    "ground_truth": "Check running applications and CPU or memory usage, restart the laptop, and install required updates. Contact Desktop Support if the problem continues."
+  },
+  {
+    "question": "What can I do to improve my laptop's performance?",
+    "ground_truth": "Close unnecessary applications, restart the laptop, check CPU and memory usage, perform approved cleanup, and install updates."
+  },
+  {
+    "question": "Is it safe to manually delete files from system folders to free up space?",
+    "ground_truth": "No. Do not manually delete system files. Use approved cleanup methods and contact Desktop Support if additional assistance is required."
+  },
+  {
+    "question": "I forgot my corporate password. How can I reset it?",
+    "ground_truth": "Use the company's self-service password reset portal and complete the required identity verification and MFA steps."
+  },
+  {
+    "question": "What should I do if I cannot complete MFA during password reset?",
+    "ground_truth": "If MFA or identity verification cannot be completed during password reset, contact IAM support for assistance."
+  },
+  {
+    "question": "Can the IT team ask me for my current password during a password reset?",
+    "ground_truth": "No. Never provide your password to IT support. Use the approved self-service password reset process."
+  },
+  {
+    "question": "Where can I reset my company password?",
+    "ground_truth": "Use the company's approved self-service password reset portal."
+  },
+  {
+    "question": "Outlook is not receiving new emails. What should I check?",
+    "ground_truth": "Check the internet connection, restart Outlook, verify that Outlook is not in Offline mode, restart the laptop, and check webmail. Contact Desktop Support if the issue continues."
+  },
+  {
+    "question": "My internet is working, but Outlook is showing Offline. What should I do?",
+    "ground_truth": "Verify the Outlook connection status, restart Outlook, and restart the laptop. If necessary, check whether email works through webmail."
+  },
+  {
+    "question": "Webmail works, but Outlook on my laptop doesn't. What should I do?",
+    "ground_truth": "Restart Outlook and the laptop. Since webmail works, the issue may be specific to the Outlook client. Contact Desktop Support if the problem continues."
+  },
+  {
+    "question": "How do I install approved software on my corporate laptop?",
+    "ground_truth": "Use the approved Software Center to locate and install the required software."
+  },
+  {
+    "question": "Can I download and install software directly from the internet?",
+    "ground_truth": "No. Do not install unauthorized software from the internet. Use the approved Software Center or submit a software request."
+  },
+  {
+    "question": "The application I need isn't available in Software Center. What should I do?",
+    "ground_truth": "Submit a software request through the approved IT process rather than downloading the application from an unauthorized source."
+  },
+  {
+    "question": "My laptop is overheating. What steps should I follow?",
+    "ground_truth": "The current IT knowledge base does not contain sufficient information about laptop overheating. Additional IT support is required."
+  },
+  {
+    "question": "My VPN is connected, but Outlook is not receiving emails. What should I check?",
+    "ground_truth": "Check the Outlook troubleshooting steps, including internet connectivity, Outlook Offline status, restarting Outlook and the laptop, and checking webmail. The VPN connection itself should also be verified if access to corporate resources is affected."
+  }
+]
