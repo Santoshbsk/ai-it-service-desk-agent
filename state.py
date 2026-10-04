@@ -28,6 +28,7 @@ class ServiceDeskState(TypedDict):
     tool_success: bool
     tool_error: str
     retry_count: int
+    tool_execution_time: float #Tool executin time
 
     #Audit log to keep track of all the actions taken by the agent
     audit_log: list
@@ -35,3 +36,13 @@ class ServiceDeskState(TypedDict):
 
     #Decision trace to keep track of the reasoning behind each decision
     decision_trace: list
+
+    classification_execution_time: float
+
+    retrieval_execution_time: float
+
+    response_generation_execution_time: float
+
+    vector_search_execution_time: float
+    
+    reranking_execution_time: float

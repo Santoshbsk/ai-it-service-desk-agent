@@ -1,3 +1,4 @@
+import time
 from typing import Literal
 from unittest import result
 from langgraph.types import interrupt
@@ -13,7 +14,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from state import ServiceDeskState
 from config import GEMINI_API_KEY, LLM_MODEL
 
-from rag import retrieve_context
+#from rag import retrieve_context
 
 from tools import check_disk_space, check_network_status, create_service_ticket, check_ticket_status, update_ticket_status
 
@@ -95,168 +96,219 @@ class ToolDecision(BaseModel):
 tool_decider = llm.with_structured_output(ToolDecision)
 
 def execute_tool(state: ServiceDeskState):
+
+    start_time = time.perf_counter()
+    tool_name = state.get("tool_name", "unknown")
+    decision_trace = state.get("decision_trace", [])
+
+    
     try:
 
+        if tool_name == "check_disk_space":
 
-            if state["tool_name"] == "check_disk_space":
+            result = check_disk_space()
+            execution_time = time.perf_counter() - start_time
+            #print(execution_time)
+            tool_trace = {
+                    "step": "execute_tool",
+                    "decision": f"Executing {tool_name} ({execution_time* 1000:.2f}ms)"
+                }
+            return {
+                "tool_result": result,
+                "tool_success": True,
+                "tool_error": "",
+                "tool_error_type": "",
+                "tool_execution_time": execution_time,
+                "tool_name": tool_name,
+                "decision_trace": decision_trace + [tool_trace]
+            }
 
-                result = check_disk_space()
+        elif tool_name == "check_network_status":
 
-            elif state["tool_name"] == "check_network_status":
-                result = check_network_status()
+            result = check_network_status()
 
-            elif state["tool_name"] == "create_service_ticket":
-                
-                result = create_service_ticket(
-                    issue=state.get("user_input"),
-                    category=state.get("category"),
-                    priority=state.get("priority"),
-                    issue_type=state.get("issue_type")
-                )
-                if "error" in result:
-                    return {
-                        "tool_result": result,
-                        "tool_success": False,
-                        "tool_error": result["error"],
-                        "tool_error_type": result.get(
-                            "error_type",
-                            "unknown"
-                        )
-                    }
-                ticket = {
+            execution_time = time.perf_counter() - start_time
+            print(execution_time)
+            return {
+                "tool_result": result,
+                "tool_success": True,
+                "tool_error": "",
+                "tool_error_type": "",
+                "tool_execution_time": execution_time,
+                "tool_name": tool_name
+            }
+
+        elif tool_name == "create_service_ticket":
+
+            result = create_service_ticket(
+                issue=state.get("user_input"),
+                category=state.get("category"),
+                priority=state.get("priority"),
+                issue_type=state.get("issue_type")
+            )
+
+            if "error" in result:
+                execution_time = time.perf_counter() - start_time
+
+                return {
+                    "tool_result": result,
+                    "tool_success": False,
+                    "tool_error": result["error"],
+                    "tool_error_type": result.get(
+                        "error_type",
+                        "unknown"
+                    ),
+                    "tool_execution_time": execution_time
+                }
+
+            ticket = {
                 "ticket_id": result["ticket_id"],
                 "status": result["status"],
                 "issue": state["user_input"],
                 "category": state["category"],
                 "priority": state["priority"],
                 "issue_type": state["issue_type"]
-                }
+            }
 
-                history = state.get("ticket_history", [])
+            history = state.get("ticket_history", [])
 
-            # history.append(ticket)
+            execution_time = time.perf_counter() - start_time
 
-                return {
+            return {
                 "tool_result": result,
                 "ticket_id": result["ticket_id"],
                 "ticket_status": result["status"],
                 "ticket_history": history + [ticket],
                 "tool_success": True,
                 "tool_error": "",
-                "tool_error_type": ""
-
-                }
-            elif state["tool_name"] == "check_ticket_status":
-
-                ticket_id = state.get("ticket_id", "")
-
-                if not ticket_id:
-
-                    return {
-                        "tool_result": {
-                            "error": "No matching ticket was found."
-                        },
-                        "tool_success": False,
-                        "tool_error": "No matching ticket was found."
-                    }
-
-                result = check_ticket_status(ticket_id)
-
-                if "error" in result:
-                     return {
-                        "tool_result": result,
-                        "tool_success": False,
-                        "tool_error": result["error"],
-                        "tool_error_type": result.get("error_type","unknown")
-                        }
-                return {
-                    "tool_result": result,
-                    "tool_success": True,
-                    "tool_error": "",
-                    "tool_error_type": "",
-                    "ticket_status": result["status"]
-                }
-
-            elif state["tool_name"] == "update_ticket_status":
-
-                ticket_id = state["ticket_id"]
-                new_status = state["requested_status"]
-
-                result = update_ticket_status(
-                    ticket_id=ticket_id,
-                    new_status=new_status
-                )
-
-                if "error" in result:
-                    return {
-                        "tool_result": result,
-                        "tool_success": False,
-                        "tool_error": result["error"],
-                        "tool_error_type": result.get(
-                            "error_type",
-                            "unknown"
-                        )
-                    }
-
-                history = state.get("ticket_history", [])
-
-                updated_history = []
-
-                for ticket in history:
-
-                    if ticket["ticket_id"] == ticket_id:
-
-                        updated_ticket = ticket.copy()
-                        updated_ticket["status"] = new_status
-
-                        updated_history.append(updated_ticket)
-
-                    else:
-                        updated_history.append(ticket)
-
-                return {
-                    "tool_result": result,
-                    "ticket_status": new_status,
-                    "ticket_history": updated_history,
-                    "tool_success": True,
-                    "tool_error": "",
-                    "tool_error_type": ""
-                }
-
-            else:
-
-                result = {
-                    "error": f"Unknown tool: {state['tool_name']}"
-                }
-            #print("result::"+result)
-            return {
-                    "tool_result": result,
-                    "decision_trace": state.get("decision_trace", []) + [
-                        {
-                            "step": "tool_execution",
-                            "decision": (
-                                f"{state['tool_name']} executed successfully"
-                            )
-                        }
-                    ]
+                "tool_error_type": "",
+                "tool_execution_time": execution_time
             }
+
+        elif tool_name == "check_ticket_status":
+
+            ticket_id = state.get("ticket_id", "")
+
+            if not ticket_id:
+
+                execution_time = time.perf_counter() - start_time
+
+                return {
+                    "tool_result": {
+                        "error": "No matching ticket was found."
+                    },
+                    "tool_success": False,
+                    "tool_error": "No matching ticket was found.",
+                    "tool_execution_time": execution_time
+                }
+
+            result = check_ticket_status(ticket_id)
+
+            execution_time = time.perf_counter() - start_time
+
+            if "error" in result:
+
+                return {
+                    "tool_result": result,
+                    "tool_success": False,
+                    "tool_error": result["error"],
+                    "tool_error_type": result.get(
+                        "error_type",
+                        "unknown"
+                    ),
+                    "tool_execution_time": execution_time
+                }
+
+            return {
+                "tool_result": result,
+                "tool_success": True,
+                "tool_error": "",
+                "tool_error_type": "",
+                "ticket_status": result["status"],
+                "tool_execution_time": execution_time
+            }
+
+        elif tool_name == "update_ticket_status":
+
+            ticket_id = state["ticket_id"]
+            new_status = state["requested_status"]
+
+            result = update_ticket_status(
+                ticket_id=ticket_id,
+                new_status=new_status
+            )
+
+            execution_time = time.perf_counter() - start_time
+
+            if "error" in result:
+
+                return {
+                    "tool_result": result,
+                    "tool_success": False,
+                    "tool_error": result["error"],
+                    "tool_error_type": result.get(
+                        "error_type",
+                        "unknown"
+                    ),
+                    "tool_execution_time": execution_time
+                }
+
+            history = state.get("ticket_history", [])
+
+            updated_history = []
+
+            for ticket in history:
+
+                if ticket["ticket_id"] == ticket_id:
+
+                    updated_ticket = ticket.copy()
+                    updated_ticket["status"] = new_status
+
+                    updated_history.append(updated_ticket)
+
+                else:
+
+                    updated_history.append(ticket)
+
+            return {
+                "tool_result": result,
+                "ticket_status": new_status,
+                "ticket_history": updated_history,
+                "tool_success": True,
+                "tool_error": "",
+                "tool_error_type": "",
+                "tool_execution_time": execution_time
+            }
+
+        else:
+
+            execution_time = time.perf_counter() - start_time
+
+            result = {
+                "error": f"Unknown tool: {tool_name}"
+            }
+
+            return {
+                "tool_result": result,
+                "tool_success": False,
+                "tool_error": result["error"],
+                "tool_error_type": "unknown_tool",
+                "tool_execution_time": execution_time
+            }
+
     except Exception as e:
+
+        execution_time = time.perf_counter() - start_time
+
         return {
             "tool_result": {},
             "tool_success": False,
             "tool_error": str(e),
-            "decision_trace": state.get("decision_trace", []) + [
-                {
-                    "step": "tool_execution",
-                    "decision": (
-                        f"{state['tool_name']} execution failed: {str(e)}"
-                    )
-                }
-            ]
+            "tool_error_type": "exception",
+            "tool_execution_time": execution_time
         }
-
 def tool_response(state: ServiceDeskState):
-
+    start_time = time.perf_counter()
     tool_name = state["tool_name"]
     result = state["tool_result"]
 
@@ -287,9 +339,11 @@ def tool_response(state: ServiceDeskState):
                 f"Your C: drive currently has {free_gb} GB of free space.\n\n"
                 "The available disk space does not appear to be critically low."
             )
-
+        end_time = time.perf_counter()
+        exec_time = end_time - start_time
         return {
-            "response": message
+            "response": message,
+            "response_generation_execution_time":exec_time
         }
 
     elif tool_name == "check_network_status":
@@ -313,9 +367,10 @@ def tool_response(state: ServiceDeskState):
                 "Please check your network connection or contact IT Support "
                 "if the issue continues."
             )
-
+        exec_time = end_time - start_time
         return {
-            "response": message
+            "response": message,
+            "response_generation_execution_time":exec_time
         }
     elif tool_name == "create_service_ticket":
         ticket_id = result.get("ticket_id")
@@ -335,18 +390,21 @@ def tool_response(state: ServiceDeskState):
                 "There was an issue creating the service ticket.\n\n"
                 "Please try again later or contact IT Support."
             )
-
+        exec_time = end_time - start_time
         return {
-            "response": response_message
+            "response": response_message,
+            "response_generation_execution_time":exec_time
         }
     elif tool_name == "check_ticket_status":
         ticket_id = state.get("ticket_id", "")
 
         if not ticket_id:
+                exec_time = end_time - start_time
                 return {
                     "tool_result": {
                         "error": "No matching ticket was found."
-                    }
+                    },
+            "response_generation_execution_time":exec_time
             }
 
         result = check_ticket_status(ticket_id)
@@ -356,8 +414,10 @@ def tool_response(state: ServiceDeskState):
         f"Ticket ID: {result['ticket_id']}\n"
         f"Status: {result['status']}\n"
         f"Message: {result['message']}")
+        exec_time = end_time - start_time
         return {
-            "response": response_message
+            "response": response_message,
+            "response_generation_execution_time":exec_time
         }
 
     elif state["tool_name"] == "update_ticket_status":
@@ -365,21 +425,25 @@ def tool_response(state: ServiceDeskState):
         result = state["tool_result"]
 
         if "error" in result:
+            exec_time = end_time - start_time
             return {
-                "response": result["error"]
+                "response": result["error"],
+                "response_generation_execution_time":exec_time
             }
-
+        exec_time = end_time - start_time
         return {
             "response": (
                 f"Ticket {result['ticket_id']} "
                 f"has been updated to {result['status']}."
-            )
+            ),
+            "response_generation_execution_time":exec_time
         }
 
     else:
-
+        exec_time = end_time - start_time
         return {
-            "response": "The requested tool could not be processed."
+            "response": "The requested tool could not be processed.",
+            "response_generation_execution_time":exec_time
         }
 
 def decide_tool(state: ServiceDeskState):
@@ -692,10 +756,10 @@ def resolve_ticket_reference(state: ServiceDeskState):
 
 
 def retrieve_knowledge(state: ServiceDeskState):
-
-    results = retrieve_context(
-        state["user_input"],
-        k=3
+    start_time = time.perf_counter()
+    results, retrieval_metrics = retrieve_context(
+    state["user_input"],
+    k=3
     )
 
     contexts = []
@@ -706,11 +770,17 @@ def retrieve_knowledge(state: ServiceDeskState):
             "source": doc.metadata.get("source", "Unknown")
         })
 
+    execution_time = time.perf_counter() - start_time
+   # print(retrieval_metrics["vector_search_time"])
     return {
-        "retrieved_context": contexts
+        "retrieved_context": contexts,
+        "retrieval_execution_time": execution_time,
+        "vector_search_execution_time": retrieval_metrics["vector_search_time"],
+        "reranking_execution_time": retrieval_metrics["reranking_time"]
     }
 
 def classify_issue(state: ServiceDeskState):
+    start_time = time.perf_counter()
 
     prompt = f"""
 You are an enterprise IT Service Desk classification agent.
@@ -748,7 +818,8 @@ Return the appropriate category and priority.
 """
 
     result = classifier.invoke(prompt)
-
+    execution_time = time.perf_counter() - start_time
+    print(f"Exec time{execution_time}")
     return {
         "category": result.category,
         "issue_type": result.issue_type,
@@ -760,9 +831,11 @@ Return the appropriate category and priority.
                 f"Category={result.category}, "
                 f"IssueType={result.issue_type}, "
                 f"Priority={result.priority}"
-            )
+            ),
         }
-    ]
+
+    ],
+        "classification_execution_time": execution_time,
     }
 
 
@@ -837,7 +910,7 @@ Return only the response.
 
 
 def self_service_response(state: ServiceDeskState):
-
+    start_time = time.perf_counter()
     context = "\n\n".join(
         [
             f"Source: {item['source']}\n{item['content']}"
@@ -896,8 +969,11 @@ Return only the final response.
     else:
         text = str(result.content)
 
+    execution_time = time.perf_counter() - start_time
+
     return {
-        "response": text.strip()
+        "response": text.strip(),
+        "response_generation_execution_time": execution_time
     }
 
 def request_approval(state: ServiceDeskState):
@@ -1096,8 +1172,16 @@ def audit_tool_action(state: ServiceDeskState):
 
     history = state.get("audit_log", [])
 
+    decision_trace = state.get("decision_trace", [])
+
+    trace_entry = {
+        "step": "audit_tool_action",
+        "decision": action
+    }
+
     return {
-        "audit_log": history + [entry]
+        "audit_log": history + [entry],
+        "decision_trace": decision_trace + [trace_entry]
     }
 
 def add_decision_trace(

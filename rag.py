@@ -4,6 +4,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmb
 from config import GEMINI_API_KEY,LLM_MODEL
 from config import CHROMA_PATH, COLLECTION_NAME
 
+import time
 
 embeddings = GoogleGenerativeAIEmbeddings(
     model="models/gemini-embedding-001",
@@ -63,7 +64,16 @@ Example:
 2, 0, 4
 """
 
+    rerank_llm_start = time.perf_counter()
+
     result = reranker_llm.invoke(prompt)
+
+    rerank_llm_execution_time = time.perf_counter() - rerank_llm_start
+
+    print(
+        f"Reranker LLM Time: "
+        f"{rerank_llm_execution_time * 1000:.2f} ms"
+    )
 
     if isinstance(result.content, list):
         text = "".join(
@@ -95,23 +105,37 @@ Example:
 
         return documents[:top_k]
 
-
 def retrieve_context(query, k=5):
+
+    search_start = time.perf_counter()
 
     results = vectorstore.similarity_search(
         query,
         k=k
     )
 
+    search_execution_time = time.perf_counter() - search_start
+
+    rerank_start = time.perf_counter()
+
     reranked = rerank_documents(
         query,
         results,
         top_k=3
     )
-    return reranked
+
+    rerank_execution_time = time.perf_counter() - rerank_start
+
+    print(f"Vector Search Time: {search_execution_time * 1000:.2f} ms")
+    print(f"Reranking Time: {rerank_execution_time * 1000:.2f} ms")
+
+    return reranked, {
+    "vector_search_time": search_execution_time,
+    "reranking_time": rerank_execution_time
+}
 
 def generate_rag_answer(query, documents):
-
+    
     context = "\n\n".join(
         [
             f"Source: {doc.metadata.get('source', 'Unknown')}\n"
