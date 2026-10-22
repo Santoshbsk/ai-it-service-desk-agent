@@ -320,6 +320,7 @@ if user_input:
         "vector_search_execution_time": 0.0,
         "reranking_execution_time": 0.0,
         "tool_execution_time": 0.0,
+        "conversation_history": []
     }
 
 

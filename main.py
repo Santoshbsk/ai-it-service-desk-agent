@@ -1,11 +1,11 @@
 from langgraph.types import Command
-from config import validate_config
+#from config import validate_config
 from agent import app
 
 
 
 if __name__ == "__main__":
-    validate_config()
+   # validate_config()
     #Configure the graph with a unique thread ID for this session
     config = {
         "configurable": {
@@ -102,3 +102,6 @@ if __name__ == "__main__":
                 f"{i}. {trace['step']}: "
                 f"{trace['decision']}"
             )
+
+        print("CONVERSATION HISTORY:")
+        print(result.get("conversation_history", []))

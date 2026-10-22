@@ -308,6 +308,7 @@ def execute_tool(state: ServiceDeskState):
             "tool_execution_time": execution_time
         }
 def tool_response(state: ServiceDeskState):
+    
     start_time = time.perf_counter()
     tool_name = state["tool_name"]
     result = state["tool_result"]
@@ -367,6 +368,8 @@ def tool_response(state: ServiceDeskState):
                 "Please check your network connection or contact IT Support "
                 "if the issue continues."
             )
+        
+        end_time = time.perf_counter()
         exec_time = end_time - start_time
         return {
             "response": message,
@@ -390,6 +393,7 @@ def tool_response(state: ServiceDeskState):
                 "There was an issue creating the service ticket.\n\n"
                 "Please try again later or contact IT Support."
             )
+        end_time = time.perf_counter()
         exec_time = end_time - start_time
         return {
             "response": response_message,
@@ -399,6 +403,7 @@ def tool_response(state: ServiceDeskState):
         ticket_id = state.get("ticket_id", "")
 
         if not ticket_id:
+                end_time = time.perf_counter()
                 exec_time = end_time - start_time
                 return {
                     "tool_result": {
@@ -414,6 +419,7 @@ def tool_response(state: ServiceDeskState):
         f"Ticket ID: {result['ticket_id']}\n"
         f"Status: {result['status']}\n"
         f"Message: {result['message']}")
+        end_time = time.perf_counter()
         exec_time = end_time - start_time
         return {
             "response": response_message,
@@ -449,7 +455,13 @@ def tool_response(state: ServiceDeskState):
 def decide_tool(state: ServiceDeskState):
 
     user_input = state["user_input"]
+    
+    conversation_history = state.get("conversation_history", [])
 
+    history_text = ""
+
+    for item in conversation_history[-6:]:
+        history_text += f'{item["role"].upper()}: {item["content"]}\n'
     prompt = f"""
 You are an IT Service Desk agent.
 
@@ -508,26 +520,37 @@ IMPORTANT TOOL SELECTION RULES:
 8. If the user is only asking for troubleshooting instructions,
    explanation, or general information, return tool_name="none".
 
-Employee request:
-{user_input}
+### Ticket recall vs. live status lookup
+
+- If the user asks for the ticket ID or ticket details of a previously raised issue, such as "What was the ticket raised for my VPN issue?", "What was my VPN ticket number?", or "Which ticket did you create for my VPN issue?", classify this as **ticket recall**, not a status lookup.
+- Ticket recall questions must use `tool_name="none"` and `tool_required=False`. The agent should retrieve the relevant ticket ID and details from conversation or ticket history.
+- If the user asks for the current status, progress, or latest state of a ticket, such as "What is the current status of my VPN ticket?", use `tool_name="check_ticket_status"` and `tool_required=True` to retrieve live status from ServiceNow.
+- Do not classify a question as a status lookup merely because it contains the words "ticket" or "issue". Focus on the user's intent.
+
+Previous conversation:
+{history_text}
+
+Current employee request:
+{state["user_input"]}
 """
 
     result = tool_decider.invoke(prompt)
     trace = state.get("decision_trace", [])
     
+    
     if result.tool_name == "none":
-            return {
-                "tool_required": False,
-                "tool_name": "",
-                "ticket_reference": "",
-                "requested_status": "",
-                "decision_trace": trace + [
-                    {
-                        "step": "tool_decision",
-                        "decision": "No tool required"
-                    }
-                ]
-            }
+        return {
+            "tool_required": False,
+            "tool_name": "",
+            "requested_status": "",
+            "decision_trace": trace + [
+                {
+                    "step": "tool_decision",
+                    "decision": "No tool required"
+                }
+            ]
+        }
+
 
    
     
@@ -781,13 +804,28 @@ def retrieve_knowledge(state: ServiceDeskState):
 
 def classify_issue(state: ServiceDeskState):
     start_time = time.perf_counter()
+    conversation_history = state.get("conversation_history", [])
+    
+    history_text = ""
+    
+    for message in conversation_history[-6:]:
+            history_text += (
+                message["role"].upper()
+                + ": "
+                + message["content"]
+                + "\n"
+            )
 
     prompt = f"""
+
 You are an enterprise IT Service Desk classification agent.
 
 Analyze the employee's issue and classify it.
 
-Employee issue:
+Previous conversation:
+{history_text}
+
+Current employee issue:
 {state["user_input"]}
 
 Classification rules:
@@ -910,6 +948,13 @@ Return only the response.
 
 
 def self_service_response(state: ServiceDeskState):
+    
+    conversation_history = state.get("conversation_history", [])
+
+    history_text = ""
+
+    for item in conversation_history[-6:]:
+        history_text += f'{item["role"].upper()}: {item["content"]}\n'
     start_time = time.perf_counter()
     context = "\n\n".join(
         [
@@ -921,8 +966,11 @@ def self_service_response(state: ServiceDeskState):
     prompt = f"""
 You are an enterprise IT Service Desk Agent.
 
-Employee issue:
 
+Previous conversation:
+{history_text}
+
+Current employee issue:
 {state["user_input"]}
 
 Category:
@@ -1201,6 +1249,25 @@ def add_decision_trace(
         "decision_trace": trace + [entry]
     }
 
+def update_conversation_memory(state: ServiceDeskState):
+
+    history = state.get("conversation_history", [])
+
+    updated_history = history + [
+        {
+            "role": "user",
+            "content": state["user_input"]
+        },
+        {
+            "role": "assistant",
+            "content": state.get("response", "")
+        }
+    ]
+
+    return {
+        "conversation_history": updated_history
+    }
+
 def route_after_classification(state: ServiceDeskState):
 
     if state["next_action"] == "escalate":
@@ -1208,19 +1275,47 @@ def route_after_classification(state: ServiceDeskState):
 
     return "self_service"
 
+
 def route_after_tool_decision(state: ServiceDeskState):
-    if state["tool_name"] == "create_service_ticket":
+    user_input = state.get("user_input", "").lower()
+
+    # Ticket creation always follows the existing duplicate-check flow
+    if state.get("tool_name") == "create_service_ticket":
         return "check_duplicate_ticket"
 
-    if state["tool_name"] == "check_ticket_status":
+    # Live status and status-update requests require ticket resolution
+    if state.get("tool_name") in {
+        "check_ticket_status",
+        "update_ticket_status"
+    }:
         return "resolve_ticket_reference"
 
-    if state["tool_name"] == "update_ticket_status":
+    # Detect explicit requests to recall a previously created ticket
+    recall_phrases = (
+        "ticket id",
+        "ticket number",
+        "what was the ticket",
+        "which ticket",
+        "ticket created",
+        "ticket did you create",
+        "without querying servicenow",
+    )
+
+    if any(phrase in user_input for phrase in recall_phrases):
         return "resolve_ticket_reference"
 
-    if state["tool_required"]:
+    # Preserve the existing behavior for other tool requests
+    if state.get("tool_required"):
         return "execute_tool"
 
+    state.setdefault("decision_trace", []).append({
+        "step": "routing_debug",
+        "decision": (
+            f"route_after_tool_decision called; "
+            f"user_input={state.get('user_input', '')!r}; "
+            f"tool_name={state.get('tool_name', '')!r}"
+        )
+    })
     return "route_issue"
 
 def route_after_ticket_resolution(state: ServiceDeskState):
@@ -1293,6 +1388,7 @@ graph.add_node("validate_status_transition",validate_status_transition)
 graph.add_node("prepare_tool_retry",prepare_tool_retry)
 graph.add_node("tool_failure_response",tool_failure_response)
 graph.add_node("audit_tool_action",audit_tool_action)
+graph.add_node("update_conversation_memory", update_conversation_memory)
 
 # Flow
 graph.add_edge(START, "classify_issue")
@@ -1328,11 +1424,14 @@ graph.add_conditional_edges(
     route_after_approval,
     {
         "approved": "execute_tool",
-        "rejected": END
+        "rejected": "update_conversation_memory"
     }
 )
 
-graph.add_edge("duplicate_ticket_response", END)
+graph.add_edge(
+    "duplicate_ticket_response",
+    "update_conversation_memory"
+)
 
 #graph.add_edge("resolve_ticket_reference", "execute_tool")
 graph.add_conditional_edges(
@@ -1342,7 +1441,7 @@ graph.add_conditional_edges(
         "validate_status": "validate_status_transition",
         "execute_tool": "execute_tool",
         "clarification": "request_ticket_clarification",
-        "end": END
+        "end": "update_conversation_memory"
     }
 )
 
@@ -1351,7 +1450,7 @@ graph.add_conditional_edges(
     route_after_status_validation,
     {
         "execute": "execute_tool",
-        "end": END
+        "end": "update_conversation_memory"
     }
 )
 
@@ -1377,8 +1476,11 @@ graph.add_conditional_edges(
 )
 
 graph.add_edge("prepare_tool_retry","execute_tool")
-graph.add_edge("tool_failure_response",END)
-graph.add_edge("tool_response", END)
+graph.add_edge(
+    "tool_failure_response",
+    "update_conversation_memory"
+)
+graph.add_edge("tool_response", "update_conversation_memory")
 
 # Priority routing for requests that don't need a tool
 graph.add_conditional_edges(
@@ -1390,8 +1492,9 @@ graph.add_conditional_edges(
     }
 )
 
-graph.add_edge("escalate", END)
-graph.add_edge("self_service", END)
+graph.add_edge("escalate", "update_conversation_memory")
+graph.add_edge("self_service", "update_conversation_memory")
+graph.add_edge("update_conversation_memory", END)
 
 memory = MemorySaver()
 

@@ -44,5 +44,7 @@ class ServiceDeskState(TypedDict):
     response_generation_execution_time: float
 
     vector_search_execution_time: float
-    
+
     reranking_execution_time: float
+
+    conversation_history: list
